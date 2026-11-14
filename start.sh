@@ -35,7 +35,9 @@ MINER_PID=""
 PING_PID=""
 
 log() {
-  printf '[%s] %s\n' "$(date '+%F %T')" "$*"
+  # Keep diagnostic output off stdout: select_best_pool is used in
+  # command substitution, whose stdout must contain only the chosen host:port.
+  printf '[%s] %s\n' "$(date '+%F %T')" "$*" >&2
 }
 
 cleanup() {
