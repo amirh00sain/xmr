@@ -1,46 +1,46 @@
-# XMRig Docker miner with pool selection
+# XMRig on Ubuntu with Docker
 
-This package contains:
-- `Dockerfile` — builds XMRig from upstream source.
-- `start.sh` — tests up to ten configured pool endpoints, selects the one
-  with the lowest successful TCP connection latency, runs XMRig, and pings
-  random public hosts in parallel.
-- `.env.example` — wallet and pool configuration template.
+## Requirements
+- Ubuntu with Docker Engine installed and working (`docker info` succeeds).
+- Your own Monero wallet receiving address.
+- Enough available RAM for RandomX. XMRig commonly needs roughly 2.3 GB for its dataset plus overhead; allow at least 4 GB available to the container/host.
 
-## Configure
+## Install and run
+1. Extract this folder.
+2. Run `cp .env.example .env` if `.env` does not exist.
+3. Edit `.env` and replace `WALLET` with your own receiving address.
+4. Run:
+   ```bash
+   chmod +x install-and-run.sh
+   ./install-and-run.sh
+   ```
+   First run creates `.env` and exits so you can edit it. Run it again after editing.
 
-Copy `.env.example` to `.env` and edit it:
-
+## Monitor
 ```bash
-cp .env.example .env
-nano .env
+docker logs -f --tail 100 xmr-miner
 ```
+XMRig should print `speed 10s/60s/15m` periodically because `--print-time=10` is enabled. Look for `accepted` to confirm accepted shares.
 
-Set `WALLET` to your own Monero wallet address. Replace the ten example
-pool endpoints with real `hostname:port` endpoints from pool operators.
-The `.example.com` entries are placeholders and will not connect.
-
-## Build and run
-
+## Stop / restart
 ```bash
-docker build -t xmr-miner .
-docker run -d --name xmr-miner --restart unless-stopped --env-file .env xmr-miner
-```
-
-Logs and stop:
-
-```bash
-docker logs -f xmr-miner
 docker stop xmr-miner
+docker start xmr-miner
 ```
 
-The script checks all configured endpoints at startup and then rechecks
-when it restarts XMRig (every 5–15 minutes). It chooses the lowest TCP
-connect latency among reachable endpoints. TCP latency is only a quick
-network metric; it does not guarantee the highest pool payout or share
-acceptance rate. Use pool endpoints and TLS settings supplied by the pool
-operator.
+## Important
+- `CPU_HINT` is an approximate XMRig thread-selection hint, not a guaranteed CPU percentage limit. Change it in `.env`, then recreate the container by running `./install-and-run.sh`.
+- The configuration intentionally runs one stable pool and does not restart the miner every few minutes. This avoids repeatedly rebuilding the RandomX dataset.
+- No random background ping process is included; it does not help mining performance or pool connectivity.
+- `MSR kernel module is not available` and `HUGE PAGES 0%` are optimization notices, not by themselves proof that mining failed.
+- The sample pool endpoint is the endpoint seen receiving a job in the log you supplied. Pool operators can change endpoints/ports/TLS settings; check their official instructions if it stops connecting.
 
-`--cpu-max-threads-hint` is an approximate XMRig thread-selection hint,
-not a hard CPU utilization limit. Actual CPU usage varies by processor,
-thread count, and container limits.
+
+## Legacy environment variables
+The `.env.example` also retains the old `MIN_CPU`, `MAX_CPU`, ping interval,
+pool-list, and pool-check variables as **deprecated examples only**. The
+current `start.sh` ignores those legacy variables. It uses only `WALLET`,
+`POOL`, `TLS`, `PASSWORD`, `CPU_HINT`, and `DONATE_LEVEL`. The old pool
+hostnames and ports are not guaranteed to remain valid. The previously
+provided wallet address is not copied into the package; enter your own
+receiving address in `.env`.
